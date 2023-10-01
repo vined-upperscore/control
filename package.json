@@ -1,0 +1,17 @@
+{
+  "name": "ikea-control",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "IKEA Control",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "vined_",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2",
+    "mineflayer": "*",
+    "ws": "*"
+  }
+}
