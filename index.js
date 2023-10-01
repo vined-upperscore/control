@@ -1,5 +1,6 @@
 import mineflayer from 'mineflayer';
 import express from 'express';
+import fs from 'fs'
 import WebSocket, { WebSocketServer } from 'ws';
 
 const SERVER_PORT = 25565;
@@ -151,7 +152,6 @@ class IkeaControl {
         this.bot.setControlState('forward', false);
         await this.bot.waitForTicks(60);
         this.loggedIn = true;
-        console.log(this.loggedIn)
         this.sendData(JSON.stringify({
           type: 'log',
           message: `Bot {white}${this.username}{gray} has joined 6b6t`
@@ -183,4 +183,10 @@ class IkeaControl {
       }
     });
   }
+}
+
+let accounts = fs.readFileSync('./accounts.txt', 'utf-8').split('\n');
+for (let account of accounts) {
+  let [name, pass] = account.split(':');
+  new IkeaControl(name, pass)
 }
