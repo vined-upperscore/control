@@ -143,14 +143,14 @@ class IkeaControl {
       try {
         this.bot.chat(`/login ${this.password}`);
       } catch { }
-      await this.bot.waitForTicks(80);
+      await this.bot.waitForTicks(20);
       this.bot.setControlState('forward', true);
       this.loginCount += 1;
 
       if (this.loginCount == 2) {
         this.loginCount = 0;
         this.bot.setControlState('forward', false);
-        await this.bot.waitForTicks(60);
+        await this.bot.waitForTicks(20);
         this.loggedIn = true;
         this.sendData(JSON.stringify({
           type: 'log',
