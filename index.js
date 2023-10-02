@@ -73,7 +73,7 @@ class IkeaControl {
   }
 
   handleMessages(ws, request) {
-    ws.on('message', (message) => {
+    ws.on('message', async (message) => {
       const data = JSON.parse(message.toString());
       if (data.type === 'ping') {
         ws.send(JSON.stringify({
@@ -106,6 +106,28 @@ class IkeaControl {
             message: `[{white}${this.username}{gray}] An error occurred in goto: ${e}`
           }))
         }
+      } else if (data.type === 'eat') {
+          if (this.bot.autoEat.isEating) {
+              this.sendData(JSON.stringify({
+                  type: 'log',
+                  message: `[{white}${this.username}{gray}] Already eating`
+              }));
+              return;
+          }
+
+          await this.bot.autoEat.eat()
+              .then(() => {
+                  this.sendData(JSON.stringify({
+                      type: 'log',
+                      message: `[{white}${this.username}{gray}] Succesfully ate`
+                  }))
+              })
+              .catch((error) => {
+                  this.sendData(JSON.stringify({
+                      type: 'log',
+                      message: `[{white}${this.username}{gray}] Error during eating: ${error}`
+                  }))
+              })
       }
     });
   }
@@ -173,6 +195,7 @@ class IkeaControl {
 
       if (this.loginCount === 2) {
         this.bot.autoEat.options.bannedFood = [];
+        this.bot.autoEat.disable();
         this.bot.pathfinder.setMovements(new Movements(this.bot));
         this.loginCount = 0;
         this.bot.setControlState('forward', false);
