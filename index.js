@@ -8,7 +8,7 @@ const SERVER_PORT = 25565;
 const PASSWORD = 'ikea';
 const pathfinder = path.pathfinder;
 const Movements = path.Movements;
-const { GoalBlock } = path.GoalBlock;
+const { GoalBlock } = path.goals;
 
 class IkeaControl {
   constructor(username, password) {
