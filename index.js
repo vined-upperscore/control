@@ -3,12 +3,15 @@ import path from 'mineflayer-pathfinder';
 import express from 'express';
 import fs from 'fs'
 import WebSocket, { WebSocketServer } from 'ws';
+import { autototem } from 'mineflayer-auto-totem';
+import ae from 'mineflayer-auto-eat';
 
 const SERVER_PORT = 25565;
 const PASSWORD = 'ikea';
 const pathfinder = path.pathfinder;
 const Movements = path.Movements;
 const { GoalBlock } = path.goals;
+const autoeat = ae.plugin;
 
 class IkeaControl {
   constructor(username, password) {
@@ -78,6 +81,10 @@ class IkeaControl {
           timestamp: Math.floor(new Date().getTime() / 1000)
         }))
       } else if (data.type === 'start') {
+        this.autoGap = data.autoGap;
+        this.autoTotem = data.autoTotem;
+        this.autoTpa = data.autoTpa;
+
         this.initBot();
         ws.send(JSON.stringify({
           type: 'log',
@@ -135,6 +142,9 @@ class IkeaControl {
     this.loginCount = 0;
     this.loggedIn = false;
     this.bot.loadPlugin(pathfinder);
+    this.bot.loadPlugin(autoeat);
+    this.bot.loadPlugin(autototem);
+
     this.initEvents();
   }
 
@@ -154,7 +164,6 @@ class IkeaControl {
   // Init bot events
   initEvents() {
     this.bot.on('login', async () => {
-      console.log(this.loginCount)
       try {
         this.bot.chat(`/login ${this.password}`);
       } catch { }
@@ -163,6 +172,7 @@ class IkeaControl {
       this.loginCount += 1;
 
       if (this.loginCount === 2) {
+        this.bot.autoEat.options.bannedFood = [];
         this.bot.pathfinder.setMovements(new Movements(this.bot));
         this.loginCount = 0;
         this.bot.setControlState('forward', false);
@@ -174,6 +184,37 @@ class IkeaControl {
         }))
       }
     });
+
+    this.bot.on('health', async () => {
+        if (!this.autoGap) return;
+        if (this.bot.autoEat.isEating) return;
+        await this.bot.autoEat.eat()
+            .catch((error) => {
+                this.sendData(JSON.stringify({
+                    type: 'log',
+                    message: `[{white}${this.username}{gray}] Error during eating: ${error}`
+                }))
+            })
+    })
+
+    this.bot.on('physicsTick', async () => {
+        if (this.autoTotem) await this.bot.autototem.equip();
+    })
+
+    this.bot.on('messagestr', async (message) => {
+        if (this.autoTpa === []) return;
+        let name = message.split(' ')[0];
+        if (!this.bot.players[name]) return;
+        if (message.startsWith(`${name} wants to teleport`)) {
+            if (this.autoTpa.includes(name)) {
+                this.bot.chat(`/tpy ${name}`);
+                this.sendData(JSON.stringify({
+                    type: 'log',
+                    message: `[{white}${this.username}{gray}] Accepted TPA from ${name}`
+                }));
+            }
+        }
+    })
 
     this.bot.on('goal_reached', (goal) => {
       this.sendData(JSON.stringify({
