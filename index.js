@@ -1,10 +1,14 @@
 import mineflayer from 'mineflayer';
+import path from 'mineflayer-pathfinder';
 import express from 'express';
 import fs from 'fs'
 import WebSocket, { WebSocketServer } from 'ws';
 
 const SERVER_PORT = 25565;
 const PASSWORD = 'ikea';
+const pathfinder = path.pathfinder;
+const Movements = path.Movements;
+const { GoalBlock } = path.GoalBlock;
 
 class IkeaControl {
   constructor(username, password) {
@@ -81,10 +85,20 @@ class IkeaControl {
         }))
       } else if (data.type === 'exit') {
         this.endWebsocket();
-      } else if (data.type === 'send') {
+      } else if (data.type === 'chat') {
         try {
           this.bot.chat(data.text);
         } catch {}
+      } else if (data.type === 'goto') {
+        let pos = data['pos'];
+        try {
+          this.bot.pathfinder.setGoal(new GoalBlock(pos[0], pos[1], pos[2]));
+        } catch (e) {
+          ws.send(JSON.stringify({
+            type: 'log',
+            message: `[{white}${this.username}{gray}] An error occurred in goto: ${e}`
+          }))
+        }
       }
     });
   }
@@ -120,6 +134,7 @@ class IkeaControl {
 
     this.loginCount = 0;
     this.loggedIn = false;
+    this.bot.loadPlugin(pathfinder);
     this.initEvents();
   }
 
@@ -143,14 +158,15 @@ class IkeaControl {
       try {
         this.bot.chat(`/login ${this.password}`);
       } catch { }
-      await this.bot.waitForTicks(20);
+      await this.bot.waitForTicks(80);
       this.bot.setControlState('forward', true);
       this.loginCount += 1;
 
-      if (this.loginCount == 2) {
+      if (this.loginCount === 2) {
+        this.bot.pathfinder.setMovements(new Movements(this.bot));
         this.loginCount = 0;
         this.bot.setControlState('forward', false);
-        await this.bot.waitForTicks(20);
+        await this.bot.waitForTicks(60);
         this.loggedIn = true;
         this.sendData(JSON.stringify({
           type: 'log',
@@ -159,12 +175,28 @@ class IkeaControl {
       }
     });
 
+    this.bot.on('goal_reached', (goal) => {
+      this.sendData(JSON.stringify({
+        type: 'log',
+        message: `[{white}${this.username}{gray}] Goal reached`
+      }))
+    })
+
+    this.bot.on('path_update', (path) => {
+      if (path.status === 'success') {
+        this.sendData(JSON.stringify({
+          type: 'log',
+          message: `[{white}${this.username}{gray}] Path found`
+        }))
+      }
+    })
+
     this.bot.on('kicked', async (reason) => {
       this.bot.end();
     });
 
     this.bot.on('error', async (err) => {
-      if (err.code == 'ECONNREFUSED') {
+      if (err.code === 'ECONNREFUSED') {
         this.bot.end()
       } else {
         this.bot.end()
@@ -174,7 +206,7 @@ class IkeaControl {
     this.bot.on('end', async (reason) => {
       this.bot.removeAllListeners();
       setTimeout(() => this.initBot(), 2000);
-      if (this.loggedIn == true) {
+      if (this.loggedIn === true) {
         this.sendData(JSON.stringify({
           type: 'log',
           message: `Bot ${this.username} got kicked with reason ${reason}`
