@@ -139,19 +139,20 @@ class IkeaControl {
   async eat() {
       this.sendData(JSON.stringify({
           type: "log",
-          message: this.eating
+          message: this.eating.toString()
       }))
       if (this.eating) return;
-      this.eating = false;
       const oldItem = this.bot.inventory.slots[this.bot.getEquipmentDestSlot('hand')];
       const gap = this.bot.inventory.findInventoryItem(767, null, null)
       if (!gap) return;
+      this.eating = true;
       await this.bot.equip(gap, 'hand');
       this.bot.deactivateItem();
       this.bot.activateItem();
       if (oldItem && oldItem.name !== gap.name) {
           await this.bot.equip(oldItem, 'hand');
       }
+      this.eating = false;
   }
 
   // Init bot instance
@@ -217,7 +218,6 @@ class IkeaControl {
         if (!this.autoGap) return;
         if (this.bot.health <= 16) {
             await this.eat();
-            this.eating = true;
         }
             // .catch((error) => {
             //     this.sendData(JSON.stringify({
