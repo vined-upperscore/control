@@ -4,15 +4,12 @@ import express from 'express';
 import fs from 'fs'
 import WebSocket, { WebSocketServer } from 'ws';
 import { autototem } from 'mineflayer-auto-totem';
-import ae from 'mineflayer-auto-eat';
-import promises_1 from "timers/promises";
 
 const SERVER_PORT = 25565;
 const PASSWORD = 'ikea';
 const pathfinder = path.pathfinder;
 const Movements = path.Movements;
 const { GoalBlock } = path.goals;
-const autoeat = ae.plugin;
 
 class IkeaControl {
   constructor(username, password) {
@@ -171,7 +168,6 @@ class IkeaControl {
     this.loginCount = 0;
     this.loggedIn = false;
     this.bot.loadPlugin(pathfinder);
-    this.bot.loadPlugin(autoeat);
     this.bot.loadPlugin(autototem);
 
     this.initEvents();
