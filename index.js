@@ -5,6 +5,7 @@ import fs from 'fs'
 import WebSocket, { WebSocketServer } from 'ws';
 import { autototem } from 'mineflayer-auto-totem';
 import ae from 'mineflayer-auto-eat';
+import promises_1 from "timers/promises";
 
 const SERVER_PORT = 25565;
 const PASSWORD = 'ikea';
@@ -22,6 +23,7 @@ class IkeaControl {
     this.version = '1.18';
     this.loggedIn = false;
     this.connections = new Map();
+    this.eating = false;
 
     this.initApp();
     this.initWebSocket();
@@ -107,21 +109,7 @@ class IkeaControl {
           }))
         }
       } else if (data.type === 'eat') {
-          if (this.bot.autoEat.isEating) {
-              this.sendData(JSON.stringify({
-                  type: 'log',
-                  message: `[{white}${this.username}{gray}] Already eating`
-              }));
-              return;
-          }
-
-          await this.bot.autoEat.eat()
-              .then(() => {
-                  this.sendData(JSON.stringify({
-                      type: 'log',
-                      message: `[{white}${this.username}{gray}] Succesfully ate`
-                  }))
-              })
+          await this.eat()
               .catch((error) => {
                   this.sendData(JSON.stringify({
                       type: 'log',
@@ -146,6 +134,24 @@ class IkeaControl {
     this.server.close(() => {
       process.exit(0);
     });
+  }
+
+  async eat() {
+      this.sendData(JSON.stringify({
+          type: "log",
+          message: this.eating
+      }))
+      if (this.eating) return;
+      this.eating = false;
+      const oldItem = this.bot.inventory.slots[this.bot.getEquipmentDestSlot('hand')];
+      const gap = this.bot.inventory.findInventoryItem(767, null, null)
+      if (!gap) return;
+      await this.bot.equip(gap, 'hand');
+      this.bot.deactivateItem();
+      this.bot.activateItem();
+      if (oldItem && oldItem.name !== gap.name) {
+          await this.bot.equip(oldItem, 'hand');
+      }
   }
 
   // Init bot instance
@@ -195,7 +201,6 @@ class IkeaControl {
 
       if (this.loginCount === 2) {
         this.bot.autoEat.options.bannedFood = [];
-        this.bot.autoEat.disable();
         this.bot.pathfinder.setMovements(new Movements(this.bot));
         this.loginCount = 0;
         this.bot.setControlState('forward', false);
@@ -210,14 +215,16 @@ class IkeaControl {
 
     this.bot.on('health', async () => {
         if (!this.autoGap) return;
-        if (this.bot.autoEat.isEating) return;
-        await this.bot.autoEat.eat()
-            .catch((error) => {
-                this.sendData(JSON.stringify({
-                    type: 'log',
-                    message: `[{white}${this.username}{gray}] Error during eating: ${error}`
-                }))
-            })
+        if (this.bot.health <= 16) {
+            await this.eat();
+            this.eating = true;
+        }
+            // .catch((error) => {
+            //     this.sendData(JSON.stringify({
+            //         type: 'log',
+            //         message: `[{white}${this.username}{gray}] Error during eating: ${error}`
+            //     }))
+            // })
     })
 
     this.bot.on('physicsTick', async () => {
