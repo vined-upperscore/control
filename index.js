@@ -108,11 +108,21 @@ class IkeaControl {
       } else if (data.type === 'eat') {
           await this.eat()
               .catch((error) => {
-                  this.sendData(JSON.stringify({
+                  ws.send(JSON.stringify({
                       type: 'log',
                       message: `[{white}${this.username}{gray}] Error during eating: ${error}`
                   }))
               })
+      } else if (data.type === 'info') {
+          ws.send(JSON.stringify({
+              type: 'log',
+              message: ```${this.username}'s info
+HP: {white}${Math.round(this.bot.health)}{gray}
+Hunger: {white}${Math.round(this.bot.food)}{gray}
+Dimension: {white}${this.bot.game.dimension}{gray}
+XP: {white}${this.bot.experience}{gray}
+Position: {white}${Object.values(this.bot.entity.position).join(' ')}{gray}```
+          }))
       }
     });
   }
@@ -134,11 +144,7 @@ class IkeaControl {
   }
 
   async eat() {
-      this.sendData(JSON.stringify({
-          type: "log",
-          message: this.eating.toString()
-      }))
-      if (this.eating) return;
+      if (this.eating === true) return;
       const oldItem = this.bot.inventory.slots[this.bot.getEquipmentDestSlot('hand')];
       const gap = this.bot.inventory.findInventoryItem(767, null, null)
       if (!gap) return;
@@ -149,7 +155,7 @@ class IkeaControl {
       if (oldItem && oldItem.name !== gap.name) {
           await this.bot.equip(oldItem, 'hand');
       }
-      this.eating = false;
+      setTimeout(() => this.eating = false, 3000);
   }
 
   // Init bot instance
@@ -197,7 +203,6 @@ class IkeaControl {
       this.loginCount += 1;
 
       if (this.loginCount === 2) {
-        this.bot.autoEat.options.bannedFood = [];
         this.bot.pathfinder.setMovements(new Movements(this.bot));
         this.loginCount = 0;
         this.bot.setControlState('forward', false);
